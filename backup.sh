@@ -2,7 +2,7 @@
 
 #CASO QUEIRA DEBBUGAR, DESCOMENTE A LINHA ABAIXO.
 #set -x
-PS3="->"
+PS3="-> "
 
 #AQUI, É O DIRETÓRIO PAI DAS PASTAS QUE QUEREMOS FAZER O BACKUP, NO MODELO, FAREMOS O BACKUP DE PASTAS QUE ESTÃO NO HOME DO USUÁRIO, ALTERE CONFORME SUA NECESSIDADE.
 LOCAL=$HOME
@@ -54,10 +54,20 @@ origem(){
   echo "Rode o comando do diretório $LOCAL"
   exit 1
  else
-  echo -e "Selecione o(s) diretório(s) que vamos fazer o backup"
-  select OPC in ${DIRETORIOS[@]} "TODOS DA LISTA" ; do
+  echo -e "Selecione o(s) diretório(s) / arquivo(s) que vamos fazer o backup"
+  select OPC in ${DIRETORIOS[@]} "TODOS DA LISTA" "OUTROS" ; do
    if [ "$OPC" = "TODOS DA LISTA" ] ; then
     ORIGEM=${DIRETORIOS[@]}
+   elif [ "$OPC" = "OUTROS" ] ; then
+      if ! ls | grep -vq -e "$(printf "%s\n" "${DIRETORIOS[@]}")" ; then
+       origem
+      else
+       echo "Selecione um arquivo ou diretório da lista abaixo:"
+       select ARQUIVO in $(ls | grep -v -e "$(printf "%s\n" "${DIRETORIOS[@]}")") ; do
+        ORIGEM="$ARQUIVO"
+        break
+       done
+      fi
    else
     ORIGEM="${OPC}"
    fi
@@ -84,7 +94,7 @@ EOF
  RESP=${RESP^^}
  if [ $RESP = "S" ] ; then
   for DIRETORIO in ${ORIGEM[@]} ; do
-     if ! rsync -a ${DIRETORIO} $DESTINO > /dev/null 2>> erro.log ; then
+     if ! rsync -a "${DIRETORIO}" "$DESTINO" > /dev/null 2>> erro.log ; then
       echo "Erro ao fazer backup. Veja o arquivo de log"
      else
       echo "Diretório ${DIRETORIO} copiado com sucesso!"
@@ -107,7 +117,7 @@ EOF
  if [ $RESP = "S" ] ; then
   read -p "Informe qual padrão que NÃO vai ser copiado para ${DESTINO} " PADRAO
    for DIRETORIO in ${ORIGEM[@]} ; do
-    if ! rsync -a --exclude="*${PADRAO}*" ${DIRETORIO} ${DESTINO} > /dev/null 2>> erro.log ; then
+    if ! rsync -a --exclude="*${PADRAO}*" "${DIRETORIO}" "${DESTINO}" > /dev/null 2>> erro.log ; then
      echo "Erro ao fazer backup. Veja o arquivo de log"
     else
      echo "Diretório ${DIRETORIO} copiado com sucesso, menos arquivos com $PADRAO no nome"
@@ -129,7 +139,7 @@ EOF
  RESP=${RESP^^}
  if [ "$RESP" = "S" ] ; then
   for DIRETORIO in ${ORIGEM[@]} ; do
-   if ! rsync -a --delete ${DIRETORIO} ${DESTINO} > /dev/null 2>> erro.log ; then
+   if ! rsync -a --delete "${DIRETORIO}" "${DESTINO}" > /dev/null 2>> erro.log ; then
      echo "Erro ao fazer backup. Veja o arquivo de log"
    else
      echo "Diretório ${DIRETORIO} copiado com sucesso!"
@@ -142,7 +152,7 @@ EOF
 
 #AQUI VAMOS TER O MENU, ONDE O USUÁRIO VAI SELECIONAR QUAL TIPO DE BACKUP ELE VAI QUERER, NO CASO AS FUNÇÕES ACIMA. 
 backup_menu(){
- echo "Diretórios que vão ser copiados: ${ORIGEM[@]}"
+ echo "Diretórios/arquivos que vão ser copiados: ${ORIGEM[@]}"
  echo "Diretório destino $DESTINO"
  echo "Selecione o tipo de backup:"
  select BKP in "Comum - Tudo" "Comum - Tira algum padrão" "Sincronismo" ;do
